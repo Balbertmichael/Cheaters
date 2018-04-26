@@ -13,6 +13,7 @@ public class Cheaters {
 	private final Pattern UNWANTED_PUNCTUATION = Pattern.compile("\\p{P}");	// pattern that should be filtered out
 	private Hashtable<String, LinkedList<Document>> wordCombos = new Hashtable<String, LinkedList<Document>>();	// hashtable of (word: list of documents it was found in)
 	private int[][] sameCombo;
+	private ArrayList<SuspectPair> suspiciousDocs = new ArrayList<SuspectPair>();
 	
 	private File folder;			// folder that holds documents (assumes no subdirectories)
 	private File[] listOfFiles;	// list of files in the folder
@@ -53,8 +54,8 @@ public class Cheaters {
 	 */
 	private void getFileList() {
 		// DEBUG
-		System.out.println(folder.getPath());
-		System.out.println(numWords);
+//		System.out.println(folder.getPath());
+//		System.out.println(numWords);
 		
 		// Grab list of files in directory
 		listOfFiles = folder.listFiles();
@@ -72,9 +73,6 @@ public class Cheaters {
 	 * 		value: linked list of documents that contain that particular phrase similarity
 	 */
 	private void scanFiles() {
-		/**
-		 * Scan through files and input into hash table
-		 */
 		Scanner sc;
 		String key;
 		
@@ -143,10 +141,11 @@ public class Cheaters {
 		}
 	}
 	
+	/**
+	 * Creates a m x m matrix (where m = number of documents) that keeps track of the number of similarities between two docs
+	 * Iterates through hash table and update a similarity array counting documents hashed to the same key
+	 */
 	private void fillSimilarityMatrix() {
-		/**
-		 * Iterate through hash table and update a similarity array counting documents hashed to the same key
-		 */
 		// Create an similarity matrix
 		sameCombo = new int[Document.counter][Document.counter];
 		for (String k : wordCombos.keySet()) {
@@ -173,6 +172,9 @@ public class Cheaters {
 		}
 	}
 	
+	/**
+	 * Use for Debugging: Prints array
+	 */
 	private void printSimilarityMatrix() {
 		// DEBUG: Print similarity Matrix
 		for (int i = 0; i < sameCombo.length; ++i) {
@@ -184,7 +186,9 @@ public class Cheaters {
 		}
 	}
 	
-	
+	/**
+	 * Outputs the documents that have more similarities than the min bound
+	 */
 	private void consoleOutput() {
 		// Output documents that have more than the minimum bound of similar words
 		for (int i = 0; i < sameCombo.length; ++i) {
@@ -197,6 +201,27 @@ public class Cheaters {
 				}
 			}
 		}
+	}
+	
+	/**
+	 * Creates a list of suspicious pairs of documents
+	 * Meant to be used by view to create a graphic representation
+	 * @param bound
+	 * @return an array list of suspicious pairs of documents
+	 */
+	private ArrayList<SuspectPair> createList(int bound) {
+		
+		for(int i = 0; i < sameCombo.length; ++i) {
+			for(int j = i + 1; j < sameCombo.length; ++j) {
+				int matchNum = sameCombo[i][j];
+				if(matchNum > bound) {
+					Document d1 = Document.masterList.get(i);
+					Document d2 = Document.masterList.get(j);
+					suspiciousDocs.add(new SuspectPair(d1, d2, matchNum));
+				}
+			}
+		}
+		return suspiciousDocs;
 	}
 	
 	private void outputRunTime() {
@@ -281,5 +306,29 @@ class Document {
 	@Override
 	public String toString() {
 		return "ID: " + id + ", Name: " + name;
+	}
+}
+
+class SuspectPair {
+	private Document d1;
+	private Document d2;
+	private int numSimilarities;
+	
+	public SuspectPair(Document d1, Document d2, int numSim) {
+		this.d1 = d1;
+		this.d2 = d2;
+		this.numSimilarities = numSim;
+	}
+	
+	public Document getD1() {
+		return d1;
+	}
+	
+	public Document getD2() {
+		return d2;
+	}
+	
+	public int getNumSame() {
+		return numSimilarities;
 	}
 }
