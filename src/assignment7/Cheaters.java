@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.Scanner;
@@ -12,6 +13,7 @@ import java.util.regex.Pattern;
 public class Cheaters {
 	private static final Pattern UNWANTED_PUNCTUATION = Pattern.compile("\\p{P}");
 	public static Hashtable<String, LinkedList<Document>> wordCombos = new Hashtable<String, LinkedList<Document>>();
+	public static Hashtable<String, HashSet<Document>> wordSet = new Hashtable<String, HashSet<Document>>();
 
 	/**
 	 * Given a directory of essays, will determine similarities between essays
@@ -20,7 +22,7 @@ public class Cheaters {
 	 *            [0] path to file, [1] number of words
 	 */
 	public static void main(String[] args) {
-
+		long startTime = System.currentTimeMillis();
 		File folder;
 		File[] listOfFiles;
 		String folderName;
@@ -101,6 +103,15 @@ public class Cheaters {
 							wordCombos.put(key, value);
 						}
 
+//						if (wordSet.containsKey(key)) {
+//							HashSet<Document> set = wordSet.get(key);
+//							set.add(fDocument);
+//						} else {
+//							HashSet<Document> set = new HashSet<Document>();
+//							set.add(fDocument);
+//							wordSet.put(key, set);
+//						}
+
 						System.out.println(key);
 					}
 				}
@@ -110,7 +121,9 @@ public class Cheaters {
 				e.printStackTrace();
 			}
 		}
-		System.out.println(wordCombos);
+		//System.out.println(wordCombos);
+		//System.exit(1);
+		
 		int[][] sameCombo = new int[Document.counter][Document.counter];
 		for (String k : wordCombos.keySet()) {
 			LinkedList<Document> match = wordCombos.get(k);
@@ -132,6 +145,7 @@ public class Cheaters {
 				}
 			}
 		}
+
 		for (int i = 0; i < sameCombo.length; ++i) {
 			String lineOut = "";
 			for (int j = 0; j < sameCombo.length; ++j) {
@@ -139,6 +153,7 @@ public class Cheaters {
 			}
 			System.out.println(lineOut);
 		}
+
 		for (int i = 0; i < sameCombo.length; ++i) {
 			for (int j = i + 1; j < sameCombo.length; ++j) {
 				int matchNum = sameCombo[i][j];
@@ -149,6 +164,12 @@ public class Cheaters {
 				}
 			}
 		}
+		long endTime   = System.currentTimeMillis();
+		long totalTime = endTime - startTime;
+		System.out.println(totalTime);
+//		for (String k : wordSet.keySet()) {
+//			
+//		}
 	}
 }
 
