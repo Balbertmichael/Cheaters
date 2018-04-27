@@ -4,43 +4,53 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Scanner;
 import java.util.regex.Pattern;
 
 public class Cheaters {
-	private final Pattern UNWANTED_PUNCTUATION = Pattern.compile("\\p{P}");	// pattern that should be filtered out
-	private Hashtable<String, LinkedList<Document>> wordCombos = new Hashtable<String, LinkedList<Document>>();	// hashtable of (word: list of documents it was found in)
+	private final Pattern UNWANTED_PUNCTUATION = Pattern.compile("\\p{P}"); // pattern that should be filtered out
+	private Hashtable<String, List<Document>> wordCombos = new Hashtable<String, List<Document>>();
+	// Hash Table of (word: list of documents it was found in)
 	private int[][] sameCombo;
 	private ArrayList<SuspectPair> suspiciousDocs = new ArrayList<SuspectPair>();
-	
-	private File folder;			// folder that holds documents (assumes no subdirectories)
-	private File[] listOfFiles;	// list of files in the folder
-	private int numWords;		// number of words that count as a similarity
-	private int miniBound;		// number of similarities that count as dangerous
-	
+
+	private File folder; // folder that holds documents (assumes no sub-directories)
+	private File[] listOfFiles; // list of files in the folder
+	private Iterator<File> listIter;
+	private Iterator<String> keySet;
+	private int numWords; // number of words that count as a similarity
+	private int miniBound; // number of similarities that count as dangerous
+	private int cores = Runtime.getRuntime().availableProcessors();
+
+	private Object o = new Object();
+
 	// DEBUG: time
 	private long startTime;
 	private long endTime;
-	
+
 	/**
 	 * Initializes default arguments
 	 */
-	public Cheaters(){
+	public Cheaters() {
 		// Default parameters: Use when testing
-		startTime = System.currentTimeMillis();	// Keeps track of how long program takes to run
+		startTime = System.currentTimeMillis(); // Keeps track of how long program takes to run
 		folder = new File(Paths.get("").toAbsolutePath().toString());
 		numWords = 6;
 		miniBound = 200;
 		getFileList();
 	}
-	
+
 	/**
 	 * Initializes user arguments as class variables
 	 */
 	public Cheaters(String[] args) {
-		startTime = System.currentTimeMillis();	// Keeps track of how long program takes to run
+		startTime = System.currentTimeMillis(); // Keeps track of how long program takes to run
 		// User input parameters
 		// Assumes folder of only text entries and no subdirectories
 		folder = new File(args[0]);
@@ -48,130 +58,178 @@ public class Cheaters {
 		miniBound = Integer.parseInt(args[2]);
 		getFileList();
 	}
-	
+
 	/**
 	 * Grabs the list of files within the chosen folder
 	 */
-	private void getFileList() {
+	private synchronized void getFileList() {
 		// DEBUG
-//		System.out.println(folder.getPath());
-//		System.out.println(numWords);
-		
+		// System.out.println(folder.getPath());
+		// System.out.println(numWords);
+
 		// Grab list of files in directory
 		listOfFiles = folder.listFiles();
+		listIter = Arrays.asList(listOfFiles).iterator();
 		// If files do not exist, return
 		if (listOfFiles == null) {
 			System.out.println("No files found. Check directory name");
 			return;
 		}
 	}
-	
-	/**
-	 * Scans the files in the subdirectory and populates the hash table
-	 * The hash table:
-	 * 		key: phrases of <numWords> words that count as a similarity
-	 * 		value: linked list of documents that contain that particular phrase similarity
-	 */
-	private void scanFiles() {
-		Scanner sc;
-		String key;
-		
-		// Iterate through files and input into hash table
-		for (File file : listOfFiles) {
-			Document fDocument = new Document(file.getName());
-			
-			//DEBUG: Check if filename properly grabbed
-//			System.out.println("FILE: " + fDocument);
 
-			try {
-
-				// Must rotate through number of words, each time offset by one
-				for (int k = 0; k < numWords; ++k) {
-					sc = new Scanner(file);
-					// sc.useDelimiter(" ");
-
-					while (sc.hasNext()) {
-
-						// Start with offset (On second run, start from second word. On third run, start from third ...)
-						for (int i = 0; i < k; ++i) {
-							if (!sc.hasNext()) {
-								break;
-							}
-							sc.next();
-						}
-
-						// Hash the keys into hash table/map
-						// Extract key from file
-						key = "";
-						for (int i = 0; i < numWords; ++i) {
-							if (!sc.hasNext()) {
-								break;
-							}
-							key += sc.next();	// get x number of words
-						}
-						
-						// Clean key (get rid of punctuation/turn to all upper case)
-						key = UNWANTED_PUNCTUATION.matcher(key).replaceAll("");
-						key = key.toUpperCase();
-
-						// Add key to hash table (key = words : value = list of documents)
-						if (wordCombos.containsKey(key)) {	// key already in table
-							LinkedList<Document> list = wordCombos.get(key);
-							
-							// Only add if document is not already there
-							if(!list.contains(fDocument)) {
-								list.add(fDocument);
-							}
-							
-						} else {	// key not yet in hash table (include key and init list of documents)
-							LinkedList<Document> value = new LinkedList<>();
-							value.add(fDocument);
-							wordCombos.put(key, value);
-						}
-
-						// DEBUG: check if key was extracted and altered properly
-//						System.out.println(key);
-					}
-				}
-
-			} catch (FileNotFoundException e) {
-				System.out.println("File not found");
-				e.printStackTrace();
-			}
+	private synchronized File getFromFileList() {
+		if (listIter.hasNext()) {
+			return listIter.next();
+		} else {
+			return null;
 		}
 	}
-	
+
 	/**
-	 * Creates a m x m matrix (where m = number of documents) that keeps track of the number of similarities between two docs
-	 * Iterates through hash table and update a similarity array counting documents hashed to the same key
+	 * Scans the files in the subdirectory and populates the hash table The hash
+	 * table: key: phrases of <numWords> words that count as a similarity value:
+	 * linked list of documents that contain that particular phrase similarity
+	 */
+	private void scanFiles() {
+		// Iterate through files and input into hash table
+		for (File file : listOfFiles) {
+			populateHashTable(file);
+		}
+	}
+
+	private void populateHashTable(File file) {
+		Scanner sc;
+		String key;
+		Document fDocument;
+		synchronized (o) {
+			fDocument = new Document(file.getName());
+		}
+
+		// DEBUG: Check if filename properly grabbed
+		// System.out.println("FILE: " + fDocument);
+
+		try {
+
+			// Must rotate through number of words, each time offset by one
+			for (int k = 0; k < numWords; ++k) {
+				sc = new Scanner(file);
+				// sc.useDelimiter(" ");
+
+				while (sc.hasNext()) {
+
+					// Start with offset (On second run, start from second word. On third run, start
+					// from third ...)
+					for (int i = 0; i < k; ++i) {
+						if (!sc.hasNext()) {
+							break;
+						}
+						sc.next();
+					}
+
+					// Hash the keys into hash table/map
+					// Extract key from file
+					key = "";
+					for (int i = 0; i < numWords; ++i) {
+						if (!sc.hasNext()) {
+							break;
+						}
+						key += sc.next(); // get x number of words
+					}
+
+					// Clean key (get rid of punctuation/turn to all upper case)
+					key = UNWANTED_PUNCTUATION.matcher(key).replaceAll("");
+					key = key.toUpperCase();
+
+					// Add key to hash table (key = words : value = list of documents)
+					if (wordCombos.containsKey(key)) { // key already in table
+						List<Document> list = wordCombos.get(key);
+
+						// Only add if document is not already there
+						if (!list.contains(fDocument)) {
+							list.add(fDocument);
+						}
+
+					} else { // key not yet in hash table (include key and init list of documents)
+						List<Document> value = Collections.synchronizedList(new LinkedList<Document>());
+						value.add(fDocument);
+						wordCombos.put(key, value);
+					}
+
+					// DEBUG: check if key was extracted and altered properly
+					// System.out.println(key);
+				}
+			}
+
+		} catch (FileNotFoundException e) {
+			System.out.println("File not found");
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * Creates a m x m matrix (where m = number of documents) that keeps track of
+	 * the number of similarities between two docs Iterates through hash table and
+	 * update a similarity array counting documents hashed to the same key
 	 */
 	private void fillSimilarityMatrix() {
 		// Create an similarity matrix
 		sameCombo = new int[Document.counter][Document.counter];
-		for (String k : wordCombos.keySet()) {
-			LinkedList<Document> match = wordCombos.get(k);
-			// For each document in the list, increment array corresponding to doc numbers
-			// Doc with smaller ID will be x value, larger ID will be y value
-			for (int i = 0; i < match.size(); ++i) {
-				for (int j = i + 1; j < match.size(); ++j) {
-					Document d1 = match.get(i);
-					Document d2 = match.get(j);
-					if (d1.equals(d2)) {
-						continue;
-					}
-					int id1 = d1.id;
-					int id2 = d2.id;
-					if (id1 > id2) {
-						int temp = id2;
-						id2 = id1;
-						id1 = temp;
-					}
-					sameCombo[id1][id2]++;
+		keySet = wordCombos.keySet().iterator();
+
+		// DEBUG:
+		cores = 0;
+
+		if (cores > 1) {
+			Thread[] processThreads = new Thread[cores];
+			for (int i = 0; i < cores; ++i) {
+				processThreads[i] = new Thread(new MapIterate());
+				processThreads[i].start();
+			}
+			for (int i = 0; i < cores; ++i) {
+				try {
+					processThreads[i].join();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
 				}
+			}
+		} else {
+			for (String k : wordCombos.keySet()) {
+				List<Document> match = wordCombos.get(k);
+				processSimilarityMatrix(match);
 			}
 		}
 	}
-	
+
+	private synchronized List<Document> getListFromKeySet() {
+		if (keySet.hasNext()) {
+			return wordCombos.get(keySet.next());
+		} else {
+			return null;
+		}
+	}
+
+	private void processSimilarityMatrix(List<Document> match) {
+		// For each document in the list, increment array corresponding to doc numbers
+		// Doc with smaller ID will be x value, larger ID will be y value
+		for (int i = 0; i < match.size(); ++i) {
+			for (int j = i + 1; j < match.size(); ++j) {
+				Document d1 = match.get(i);
+				Document d2 = match.get(j);
+				if (d1.equals(d2)) {
+					continue;
+				}
+				int id1 = d1.id;
+				int id2 = d2.id;
+				if (id1 > id2) {
+					int temp = id2;
+					id2 = id1;
+					id1 = temp;
+				}
+				sameCombo[id1][id2]++;
+			}
+		}
+	}
+
 	/**
 	 * Use for Debugging: Prints array
 	 */
@@ -185,7 +243,7 @@ public class Cheaters {
 			System.out.println(lineOut);
 		}
 	}
-	
+
 	/**
 	 * Outputs the documents that have more similarities than the min bound
 	 */
@@ -202,19 +260,20 @@ public class Cheaters {
 			}
 		}
 	}
-	
+
 	/**
-	 * Creates a list of suspicious pairs of documents
-	 * Meant to be used by view to create a graphic representation
+	 * Creates a list of suspicious pairs of documents Meant to be used by view to
+	 * create a graphic representation
+	 * 
 	 * @param bound
 	 * @return an array list of suspicious pairs of documents
 	 */
 	private ArrayList<SuspectPair> createList(int bound) {
-		
-		for(int i = 0; i < sameCombo.length; ++i) {
-			for(int j = i + 1; j < sameCombo.length; ++j) {
+
+		for (int i = 0; i < sameCombo.length; ++i) {
+			for (int j = i + 1; j < sameCombo.length; ++j) {
 				int matchNum = sameCombo[i][j];
-				if(matchNum > bound) {
+				if (matchNum > bound) {
 					Document d1 = Document.masterList.get(i);
 					Document d2 = Document.masterList.get(j);
 					suspiciousDocs.add(new SuspectPair(d1, d2, matchNum));
@@ -223,14 +282,14 @@ public class Cheaters {
 		}
 		return suspiciousDocs;
 	}
-	
+
 	private void outputRunTime() {
 		// Output run time
-		long endTime   = System.currentTimeMillis();
+		endTime = System.currentTimeMillis();
 		long totalTime = endTime - startTime;
 		System.out.println("Total " + totalTime + " ms");
 	}
-	
+
 	/**
 	 * Given a directory of essays, will determine similarities between essays
 	 * 
@@ -238,30 +297,71 @@ public class Cheaters {
 	 *            [0] path to file, [1] number of words
 	 */
 	public static void main(String[] args) {
-		Cheaters cheaters;
-		if(args.length < 3) {
-			cheaters = new Cheaters();
+		int stress = 20;
+		for (int j = 0; j < stress; ++j) {
+			Cheaters cheaters;
+			if (args.length < 3) {
+				cheaters = new Cheaters();
+			} else {
+				cheaters = new Cheaters(args);
+			}
+			// DEBUG
+			// cheaters.cores = 0;
+			if (cheaters.cores > 1) {
+				Thread[] scanThreads = new Thread[cheaters.cores];
+				for (int i = 0; i < cheaters.cores; ++i) {
+					scanThreads[i] = new Thread(cheaters.new MapPopulate());
+					scanThreads[i].start();
+				}
+				for (int i = 0; i < cheaters.cores; ++i) {
+					try {
+						scanThreads[i].join();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			} else {
+				cheaters.scanFiles();
+			}
+			cheaters.fillSimilarityMatrix();
+
+			// DEBUG
+			// cheaters.printSimilarityMatrix();
+
+			cheaters.consoleOutput();
+			cheaters.outputRunTime();
 		}
-		else {
-			cheaters = new Cheaters(args);
+	}
+
+	private class MapPopulate implements Runnable {
+
+		@Override
+		public void run() {
+			File file = getFromFileList();
+
+			while (file != null) {
+				populateHashTable(file);
+				file = getFromFileList();
+			}
 		}
-		
-		cheaters.scanFiles();
-		cheaters.fillSimilarityMatrix();
-		
-		// DEBUG
-//		cheaters.printSimilarityMatrix();
-		
-		cheaters.consoleOutput();
-		cheaters.outputRunTime();
+	}
+
+	private class MapIterate implements Runnable {
+		@Override
+		public void run() {
+			List<Document> match = getListFromKeySet();
+			while (match != null) {
+				processSimilarityMatrix(match);
+				match = getListFromKeySet();
+			}
+		}
 	}
 }
 
 /**
- * Document class: Helper Class that represents a file in the directory
- * Each file will have an ID that will help map it to the similarity array
- * The document title are also kept
- * Holds both ID and document title
+ * Document class: Helper Class that represents a file in the directory Each
+ * file will have an ID that will help map it to the similarity array The
+ * document title are also kept Holds both ID and document title
  */
 class Document {
 	public int id;
@@ -313,21 +413,21 @@ class SuspectPair {
 	private Document d1;
 	private Document d2;
 	private int numSimilarities;
-	
+
 	public SuspectPair(Document d1, Document d2, int numSim) {
 		this.d1 = d1;
 		this.d2 = d2;
 		this.numSimilarities = numSim;
 	}
-	
+
 	public Document getD1() {
 		return d1;
 	}
-	
+
 	public Document getD2() {
 		return d2;
 	}
-	
+
 	public int getNumSame() {
 		return numSimilarities;
 	}
