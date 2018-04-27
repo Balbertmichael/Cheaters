@@ -173,7 +173,7 @@ public class Cheaters {
 	 */
 	private void fillSimilarityMatrix() {
 		// Create an similarity matrix
-		sameCombo = new int[Document.counter][Document.counter];
+		sameCombo = new int[Document.getCounter()][Document.getCounter()];
 		keySet = wordCombos.keySet().iterator();
 
 		// DEBUG:
@@ -218,8 +218,8 @@ public class Cheaters {
 				if (d1.equals(d2)) {
 					continue;
 				}
-				int id1 = d1.id;
-				int id2 = d2.id;
+				int id1 = d1.getId();
+				int id2 = d2.getId();
 				if (id1 > id2) {
 					int temp = id2;
 					id2 = id1;
@@ -253,9 +253,9 @@ public class Cheaters {
 			for (int j = i + 1; j < sameCombo.length; ++j) {
 				int matchNum = sameCombo[i][j];
 				if (matchNum > miniBound) {
-					Document d1 = Document.masterList.get(i);
-					Document d2 = Document.masterList.get(j);
-					System.out.println(d1.name + "," + d2.name + ": " + matchNum);
+					Document d1 = Document.getMasterList().get(i);
+					Document d2 = Document.getMasterList().get(j);
+					System.out.println(d1.getName() + "," + d2.getName() + ": " + matchNum);
 				}
 			}
 		}
@@ -274,8 +274,8 @@ public class Cheaters {
 			for (int j = i + 1; j < sameCombo.length; ++j) {
 				int matchNum = sameCombo[i][j];
 				if (matchNum > bound) {
-					Document d1 = Document.masterList.get(i);
-					Document d2 = Document.masterList.get(j);
+					Document d1 = Document.getMasterList().get(i);
+					Document d2 = Document.getMasterList().get(j);
 					suspiciousDocs.add(new SuspectPair(d1, d2, matchNum));
 				}
 			}
@@ -290,6 +290,32 @@ public class Cheaters {
 		System.out.println("Total " + totalTime + " ms");
 	}
 
+	public void processFiles() {
+		// DEBUG
+		// cores = 0;
+		if (cores > 1) {
+			Thread[] scanThreads = new Thread[cores];
+			for (int i = 0; i < cores; ++i) {
+				scanThreads[i] = new Thread(new MapPopulate());
+				scanThreads[i].start();
+			}
+			for (int i = 0; i < cores; ++i) {
+				try {
+					scanThreads[i].join();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		} else {
+			scanFiles();
+		}
+		fillSimilarityMatrix();
+		// DEBUG
+		// cheaters.printSimilarityMatrix();
+		consoleOutput();
+		outputRunTime();
+		
+	}
 	/**
 	 * Given a directory of essays, will determine similarities between essays
 	 * 
@@ -305,31 +331,7 @@ public class Cheaters {
 			} else {
 				cheaters = new Cheaters(args);
 			}
-			// DEBUG
-			// cheaters.cores = 0;
-			if (cheaters.cores > 1) {
-				Thread[] scanThreads = new Thread[cheaters.cores];
-				for (int i = 0; i < cheaters.cores; ++i) {
-					scanThreads[i] = new Thread(cheaters.new MapPopulate());
-					scanThreads[i].start();
-				}
-				for (int i = 0; i < cheaters.cores; ++i) {
-					try {
-						scanThreads[i].join();
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-				}
-			} else {
-				cheaters.scanFiles();
-			}
-			cheaters.fillSimilarityMatrix();
-
-			// DEBUG
-			// cheaters.printSimilarityMatrix();
-
-			cheaters.consoleOutput();
-			cheaters.outputRunTime();
+			cheaters.processFiles();
 		}
 	}
 
@@ -358,77 +360,3 @@ public class Cheaters {
 	}
 }
 
-/**
- * Document class: Helper Class that represents a file in the directory Each
- * file will have an ID that will help map it to the similarity array The
- * document title are also kept Holds both ID and document title
- */
-class Document {
-	public int id;
-	public String name;
-	public static int counter = 0;
-	public static ArrayList<Document> masterList = new ArrayList<Document>();
-
-	public Document(String name) {
-		id = counter++;
-		this.name = name;
-		masterList.add(this);
-	}
-
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + id;
-		result = prime * result + ((name == null) ? 0 : name.hashCode());
-		return result;
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		Document other = (Document) obj;
-		if (id != other.id)
-			return false;
-		if (name == null) {
-			if (other.name != null)
-				return false;
-		} else if (!name.equals(other.name))
-			return false;
-		return true;
-	}
-
-	@Override
-	public String toString() {
-		return "ID: " + id + ", Name: " + name;
-	}
-}
-
-class SuspectPair {
-	private Document d1;
-	private Document d2;
-	private int numSimilarities;
-
-	public SuspectPair(Document d1, Document d2, int numSim) {
-		this.d1 = d1;
-		this.d2 = d2;
-		this.numSimilarities = numSim;
-	}
-
-	public Document getD1() {
-		return d1;
-	}
-
-	public Document getD2() {
-		return d2;
-	}
-
-	public int getNumSame() {
-		return numSimilarities;
-	}
-}
