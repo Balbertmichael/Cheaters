@@ -14,12 +14,14 @@ import java.util.Scanner;
 import java.util.regex.Pattern;
 
 public class Cheaters {
+	private ArrayList<SuspectPair> suspectPairs = new ArrayList<SuspectPair>();
+	private ArrayList<Document> suspectDocs = new ArrayList<Document>();
+	
 	private final Pattern UNWANTED_PUNCTUATION = Pattern.compile("\\p{P}"); // pattern that should be filtered out
 	private Hashtable<String, List<Document>> wordCombos = new Hashtable<String, List<Document>>();
 	// Hash Table of (word: list of documents it was found in)
 	private int[][] sameCombo;
-	private ArrayList<SuspectPair> suspiciousDocs = new ArrayList<SuspectPair>();
-
+	
 	private File folder; // folder that holds documents (assumes no sub-directories)
 	private File[] listOfFiles; // list of files in the folder
 	private Iterator<File> listIter;
@@ -255,7 +257,7 @@ public class Cheaters {
 				if (matchNum > miniBound) {
 					Document d1 = Document.getMasterList().get(i);
 					Document d2 = Document.getMasterList().get(j);
-					System.out.println(d1.getName() + "," + d2.getName() + ": " + matchNum);
+					System.out.println(d1.getId() + "," + d2.getId() + ": " + matchNum);
 				}
 			}
 		}
@@ -276,11 +278,11 @@ public class Cheaters {
 				if (matchNum > bound) {
 					Document d1 = Document.getMasterList().get(i);
 					Document d2 = Document.getMasterList().get(j);
-					suspiciousDocs.add(new SuspectPair(d1, d2, matchNum));
+					suspectPairs.add(new SuspectPair(d1, d2, matchNum));
 				}
 			}
 		}
-		return suspiciousDocs;
+		return suspectPairs;
 	}
 
 	private void outputRunTime() {
@@ -290,6 +292,10 @@ public class Cheaters {
 		System.out.println("Total " + totalTime + " ms");
 	}
 
+	/**
+	 * Processes the files into hash table and generates similarity matrix
+	 * Originally main function before GUI Implementation
+	 */
 	public void processFiles() {
 		// DEBUG
 		// cores = 0;
@@ -316,6 +322,50 @@ public class Cheaters {
 		outputRunTime();
 		
 	}
+	
+	
+	/**
+	 * Creates a list of suspicious pairs of documents Meant to be used by view to
+	 * create a graphic representation
+	 * 
+	 * @param bound
+	 * @return an array list of suspicious pairs of documents
+	 */
+	public void createSuspectList(int bound) {
+
+		for (int i = 0; i < sameCombo.length; ++i) {
+			for (int j = i + 1; j < sameCombo.length; ++j) {
+				int matchNum = sameCombo[i][j];
+				if (matchNum > bound) {
+					Document d1 = Document.getMasterList().get(i);
+					Document d2 = Document.getMasterList().get(j);
+					if(!suspectDocs.contains(d1)) {
+						suspectDocs.add(d1);
+					}
+					if(!suspectDocs.contains(d2)) {
+						suspectDocs.add(d2);
+					}
+					suspectPairs.add(new SuspectPair(d1, d2, matchNum));
+				}
+			}
+		}
+	}
+
+	/**
+	 * Returns suspicious pairs of documents
+	 * @return
+	 */
+	public ArrayList<SuspectPair> getSuspiciousPairsOfDocs() {
+		return suspectPairs;
+	}
+	
+	/**
+	 * Returns suspicious documents
+	 */
+	public ArrayList<Document> getSuspiciousDocs(){
+		return suspectDocs;
+	}
+	
 	/**
 	 * Given a directory of essays, will determine similarities between essays
 	 * 

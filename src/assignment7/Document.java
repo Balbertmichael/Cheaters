@@ -15,7 +15,9 @@ public class Document {
 	private static ArrayList<Document> masterList = new ArrayList<Document>();
 
 	public Document() {
-		
+		id = counter++;
+		this.name = "testingdoc#" + counter;
+		masterList.add(this);
 	}
 	
 	public Document(String name) {
