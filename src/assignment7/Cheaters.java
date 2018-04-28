@@ -177,7 +177,7 @@ public class Cheaters {
 	 */
 	private void fillSimilarityMatrix() {
 		// Create an similarity matrix
-		sameCombo = new int[Document.counter][Document.counter];
+		sameCombo = new int[Document.getCounter()][Document.getCounter()];
 		keySet = wordCombos.keySet().iterator();
 
 		if (cores > 1) {
@@ -218,8 +218,8 @@ public class Cheaters {
 				if (d1.equals(d2)) {
 					continue;
 				}
-				int id1 = d1.id;
-				int id2 = d2.id;
+				int id1 = d1.getId();
+				int id2 = d2.getId();
 				if (id1 > id2) {
 					int temp = id2; // In order to map to the upper triangle of the matrix to not have to do a
 									// double check or fold over
@@ -254,9 +254,9 @@ public class Cheaters {
 			for (int j = i + 1; j < sameCombo.length; ++j) { // i + 1 to skip over checking the diagonal of the matrix
 				int matchNum = sameCombo[i][j];
 				if (matchNum > miniBound) {
-					Document d1 = Document.masterList.get(i);
-					Document d2 = Document.masterList.get(j);
-					System.out.println(d1.name + "," + d2.name + ": " + matchNum);
+					Document d1 = Document.getMasterList().get(i);
+					Document d2 = Document.getMasterList().get(j);
+					System.out.println(d1.getName() + "," + d2.getName() + ": " + matchNum);
 				}
 			}
 		}
@@ -275,8 +275,8 @@ public class Cheaters {
 			for (int j = i + 1; j < sameCombo.length; ++j) {
 				int matchNum = sameCombo[i][j];
 				if (matchNum > bound) {
-					Document d1 = Document.masterList.get(i);
-					Document d2 = Document.masterList.get(j);
+					Document d1 = Document.getMasterList().get(i);
+					Document d2 = Document.getMasterList().get(j);
 					suspiciousDocs.add(new SuspectPair(d1, d2, matchNum));
 				}
 			}
@@ -294,6 +294,32 @@ public class Cheaters {
 		System.out.println("Total " + totalTime + " ms");
 	}
 
+	public void processFiles() {
+		// DEBUG
+		// cores = 0;
+		if (cores > 1) {
+			Thread[] scanThreads = new Thread[cores];
+			for (int i = 0; i < cores; ++i) {
+				scanThreads[i] = new Thread(new MapPopulate());
+				scanThreads[i].start();
+			}
+			for (int i = 0; i < cores; ++i) {
+				try {
+					scanThreads[i].join();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		} else {
+			scanFiles();
+		}
+		fillSimilarityMatrix();
+		// DEBUG
+		// cheaters.printSimilarityMatrix();
+		consoleOutput();
+		outputRunTime();
+		
+	}
 	/**
 	 * Given a directory of essays, will determine similarities between essays
 	 * 
@@ -313,6 +339,7 @@ public class Cheaters {
 				scanThreads[i] = new Thread(cheaters.new MapPopulate());
 				scanThreads[i].start();
 			}
+<<<<<<< HEAD
 			for (int i = 0; i < cheaters.cores; ++i) {
 				try {
 					scanThreads[i].join();
@@ -322,6 +349,9 @@ public class Cheaters {
 			}
 		} else {
 			cheaters.scanFiles();
+=======
+			cheaters.processFiles();
+>>>>>>> origin/master
 		}
 		cheaters.fillSimilarityMatrix();
 
@@ -389,6 +419,7 @@ public class Cheaters {
 	}
 }
 
+<<<<<<< HEAD
 /**
  * Document class: Helper Class that represents a file in the directory Each
  * file will have an ID that will help map it to the similarity array The
@@ -469,3 +500,5 @@ class SuspectPair {
 		return numSimilarities;
 	}
 }
+=======
+>>>>>>> origin/master
