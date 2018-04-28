@@ -293,7 +293,9 @@ public class Cheaters {
 		long totalTime = endTime - startTime;
 		System.out.println("Total " + totalTime + " ms");
 	}
-
+	/**
+	 * Wrapper for the file processing part from the HashMap creation to the matrix addition
+	 */
 	public void processFiles() {
 		// DEBUG
 		// cores = 0;
@@ -318,8 +320,9 @@ public class Cheaters {
 		// cheaters.printSimilarityMatrix();
 		consoleOutput();
 		outputRunTime();
-		
+
 	}
+
 	/**
 	 * Given a directory of essays, will determine similarities between essays
 	 * 
@@ -333,32 +336,7 @@ public class Cheaters {
 		} else {
 			cheaters = new Cheaters(args);
 		}
-		if (cheaters.cores > 1) {
-			Thread[] scanThreads = new Thread[cheaters.cores];
-			for (int i = 0; i < cheaters.cores; ++i) {
-				scanThreads[i] = new Thread(cheaters.new MapPopulate());
-				scanThreads[i].start();
-			}
-<<<<<<< HEAD
-			for (int i = 0; i < cheaters.cores; ++i) {
-				try {
-					scanThreads[i].join();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
-		} else {
-			cheaters.scanFiles();
-=======
-			cheaters.processFiles();
->>>>>>> origin/master
-		}
-		cheaters.fillSimilarityMatrix();
-
-		// DEBUG
-		// cheaters.printSimilarityMatrix();
-		cheaters.consoleOutput();
-		cheaters.outputRunTime();
+		cheaters.processFiles();
 	}
 
 	/**
@@ -378,6 +356,7 @@ public class Cheaters {
 				file = getFromFileList();
 			}
 		}
+
 	}
 
 	private synchronized File getFromFileList() {
@@ -418,87 +397,3 @@ public class Cheaters {
 		}
 	}
 }
-
-<<<<<<< HEAD
-/**
- * Document class: Helper Class that represents a file in the directory Each
- * file will have an ID that will help map it to the similarity array The
- * document title are also kept Holds both ID and document title
- */
-class Document {
-	public int id;
-	public String name;
-	public static int counter = 0;
-	public static ArrayList<Document> masterList = new ArrayList<Document>();
-
-	public Document(String name) {
-		id = counter++;
-		this.name = name;
-		masterList.add(this);
-	}
-
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + id;
-		result = prime * result + ((name == null) ? 0 : name.hashCode());
-		return result;
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		Document other = (Document) obj;
-		if (id != other.id)
-			return false;
-		if (name == null) {
-			if (other.name != null)
-				return false;
-		} else if (!name.equals(other.name))
-			return false;
-		return true;
-	}
-
-	@Override
-	public String toString() {
-		return "ID: " + id + ", Name: " + name;
-	}
-}
-
-/**
- * Matcher class in order to make processing for the GUI simpler
- * 
- * @author balbe
- *
- */
-class SuspectPair {
-	private Document d1;
-	private Document d2;
-	private int numSimilarities;
-
-	public SuspectPair(Document d1, Document d2, int numSim) {
-		this.d1 = d1;
-		this.d2 = d2;
-		this.numSimilarities = numSim;
-	}
-
-	public Document getD1() {
-		return d1;
-	}
-
-	public Document getD2() {
-		return d2;
-	}
-
-	public int getNumSame() {
-		return numSimilarities;
-	}
-}
-=======
->>>>>>> origin/master
