@@ -1,7 +1,12 @@
 package assignment7;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,7 +19,12 @@ import java.util.Scanner;
 import java.util.regex.Pattern;
 
 public class Cheaters {
-	private final Pattern UNWANTED_PUNCTUATION = Pattern.compile("\\p{P}"); // pattern that should be filtered out
+	private final Pattern UNWANTED_PUNCTUATION = Pattern.compile("[^A-Za-z0-9]"); // pattern that should be filtered out
+	/* Different string exclusion patterns
+	[^A-Za-z]
+	[^A-Za-z0-9]
+	\\p{P}
+	 */
 
 	// Data Structures to hold the needed map, matrix and pairs
 	private Hashtable<String, List<Document>> wordCombos = new Hashtable<String, List<Document>>();
@@ -94,6 +104,12 @@ public class Cheaters {
 		}
 	}
 
+//	static List<String> d = new ArrayList<String>();
+//	static {
+////		d.add("bef1121.txt");
+////		d.add("edo14.txt");
+//	}
+
 	/**
 	 * Build the hash table from the given <numWords> chunks
 	 * 
@@ -105,17 +121,25 @@ public class Cheaters {
 		Scanner sc;
 		String key;
 		Document fDocument;
+//		boolean check = false;
 
 		synchronized (o) {
+			String name = file.getName();
 			fDocument = new Document(file.getName());
+//			if (d.contains(name)) {
+//				check = true;
+//				System.out.println();
+//			}
 		}
 
 		try {
-			sc = new Scanner(file);
+			Charset encoding = StandardCharsets.UTF_8;
+			sc = new Scanner(new BufferedReader(new InputStreamReader(new FileInputStream(file), encoding)));
+			// Set encoding because file inputstreams are hard to figure out encoding
 			ArrayList<String> keyArr = new ArrayList<String>();
 			for (int k = 0; k < numWords; ++k) {
 				if (sc.hasNext()) {
-					keyArr.add(sc.next());
+					keyArr.add(addNextKey(sc));
 				}
 			}
 			while (sc.hasNext()) {
@@ -128,15 +152,34 @@ public class Cheaters {
 				for (String s : keyArr) {
 					key += s;
 				}
+//				if (check) {
+//					if (key.equals("themovie,whilealsobeingmore")) {
+//						check = true;
+//					}
+//					System.out.println(key);
+//				}
+				
 				addKeyToHash(key, fDocument);
 				keyArr.remove(0);
-				keyArr.add(sc.next());
+				keyArr.add(addNextKey(sc));
 			}
 			sc.close();
 		} catch (FileNotFoundException e) {
 			System.out.println("File not found");
 			e.printStackTrace();
 		}
+	}
+	
+	private String addNextKey(Scanner sc) {
+		String newKey = "";
+		while(sc.hasNext() && newKey.equals("")) {
+			newKey = sc.next();
+			// Clean key (get rid of punctuation/turn to all upper case)
+			newKey = UNWANTED_PUNCTUATION.matcher(newKey).replaceAll("");
+			newKey = newKey.toUpperCase();
+		}
+		
+		return newKey;
 	}
 
 	/**
@@ -149,19 +192,15 @@ public class Cheaters {
 	 */
 	private void addKeyToHash(String key, Document fDocument) {
 
-		// Clean key (get rid of punctuation/turn to all upper case)
-		key = UNWANTED_PUNCTUATION.matcher(key).replaceAll("");
-		key = key.toUpperCase();
-
 		// Add key to hash table (key = words : value = list of documents)
 		if (wordCombos.containsKey(key)) { // key already in table
 			List<Document> list = wordCombos.get(key);
 
 			// Only add if document is not already there
-			if (!list.contains(fDocument)) {
-				list.add(fDocument);
-			}
+			// if (!list.contains(fDocument)) {
 			// list.add(fDocument);
+			// }
+			list.add(fDocument);
 
 		} else { // key not yet in hash table (include key and init list of documents)
 			List<Document> value = Collections.synchronizedList(new LinkedList<Document>());
@@ -277,6 +316,9 @@ public class Cheaters {
 				if (matchNum > bound) {
 					Document d1 = Document.getMasterList().get(i);
 					Document d2 = Document.getMasterList().get(j);
+					// if(d1.getName().equals("bef1121") && d2.getName().equals("edo14")) {
+					// System.out.println();
+					// }
 					suspiciousDocs.add(new SuspectPair(d1, d2, matchNum));
 				}
 			}
@@ -293,12 +335,14 @@ public class Cheaters {
 		long totalTime = endTime - startTime;
 		System.out.println("Total " + totalTime + " ms");
 	}
+
 	/**
-	 * Wrapper for the file processing part from the HashMap creation to the matrix addition
+	 * Wrapper for the file processing part from the HashMap creation to the matrix
+	 * addition
 	 */
 	public void processFiles() {
 		// DEBUG
-		// cores = 0;
+//		cores = 0;
 		if (cores > 1) {
 			Thread[] scanThreads = new Thread[cores];
 			for (int i = 0; i < cores; ++i) {
