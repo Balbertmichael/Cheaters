@@ -4,16 +4,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import javafx.geometry.Insets;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 
 
 public class Graph extends Pane{
-
-	private int numCols;
-	private int numRows;
-	private double width;
-	private double height;
-	private boolean[][] occupied; 
 	
 	private List<Document> docs;
 	private List<SuspectPair> pairs;
@@ -22,23 +18,18 @@ public class Graph extends Pane{
 	private List<Edge> edges = new ArrayList<>();
 	private Random rand = new Random();
 	
+	private UserMenu menu;
 	
-	public void setGrid() {
-		
-	}
-	
-	private Location pickNodeLoc() {
-		double row;
-		double col;
-	
-		row = rand.nextDouble() * width;
-		col = rand.nextDouble() * height;
-
-		return new Location(row, col);
+	public void clearGraph() {
+		nodes.clear();
+		edges.clear();
+		getChildren().clear();
+		Node.clearCounter();
 	}
 	
 	public void draw() {
-		setGrid();
+		clearGraph();
+		Node.setTotalNodeCount(docs.size());
 		
 		for(Document d : docs) {
 			Node n = new Node(d);
@@ -46,6 +37,7 @@ public class Graph extends Pane{
 		}
 		
 		for(SuspectPair p : pairs) {
+			Edge.setBound(menu.getBound());
 			
 			Document d1 = p.getD1();
 			Document d2 = p.getD2();
@@ -72,26 +64,24 @@ public class Graph extends Pane{
 		}
 		
 		for(Node n : nodes) {
-			Location loc = pickNodeLoc();
-			n.relocate(loc.getX(), loc.getY());
 			getChildren().add(n);
 		}
 		
 	}
 	
 	
+	public Graph(UserMenu menu) {
+		this.menu = menu;
+	}
 	
-	public Graph(List<Document> docs, List<SuspectPair> pairs, double width, double height) {
-		this.width = width;
-		this.height = height;
+	public void setGraph(List<Document> docs, List<SuspectPair> pairs) {
+		
+		setStyle("-fx-background-color: #35383d;");
+		setPadding(new Insets(20));
 		
 		this.docs = docs;
 		this.pairs = pairs;	
 		
-		System.out.println(docs.size());
-		numRows = docs.size();
-		numCols = docs.size();
-		occupied = new boolean[numRows][numCols];
 	}
 	
 }

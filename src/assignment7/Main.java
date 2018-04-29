@@ -10,6 +10,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
@@ -18,30 +19,45 @@ import javafx.stage.Stage;
 
 public class Main extends Application {
 
+	private final static int SCENE_SIZE = 800;
+	private static UserMenu menu;
+	private static Graph graph;
+	private static Cheaters cheaters;	
+	
+	public static int getSceneSize() {
+		return SCENE_SIZE;
+	}
+	
+	public static void setCheaters(Cheaters c) {
+		cheaters = c;
+	}
+	
+	public static Cheaters getCheaters() {
+		return cheaters;
+	}
+	
+	public static UserMenu getUserMenu() {
+		return menu;
+	}
+	
+	public static Graph getGraph() {
+		return graph;
+	}
+	
 	@Override
 	public void start(Stage primaryStage) {
-		String[] args = {"C:\\Users\\anisa\\Desktop\\Sp18\\EE 422C\\Programming Assignments\\7Plagiarism\\sm_doc_set\\sm_doc_set", "3", "50"};
-
-	    Pane canvas = new Pane();
-	    Pane circleCanvas = new StackPane();
 	    
-	    canvas.setStyle("-fx-background-color: #35383d;");
-	    Circle circle = new Circle(50,Color.BLUE);
-	    circle.relocate(20, 20);
-	    circleCanvas.getChildren().addAll(circle, new Text("1"));
-	    circleCanvas.relocate(500, 500);
-	    Rectangle rectangle = new Rectangle(100,100,Color.RED);
-	    rectangle.relocate(70,70);
-	    canvas.getChildren().addAll(circleCanvas,rectangle);
+	    VBox root = new VBox();
+	    Scene sc = new Scene(root, SCENE_SIZE, SCENE_SIZE);
 		
-	    Cheaters cheaters = new Cheaters(args);
-	    cheaters.processFiles();
-	    cheaters.createSuspectList(50);
-	    Graph graph = new Graph(cheaters.getSuspiciousDocs(), cheaters.getSuspiciousPairsOfDocs(), 600, 600);
-	    graph.setStyle("-fx-background-color: #35383d;");
-	    graph.draw();
+	    menu = new UserMenu(primaryStage);
+	    menu.createUserMenu();
 	    
-		Scene sc = new Scene(graph, 800, 800);
+	    graph = new Graph(menu);
+
+	    root.getChildren().addAll(menu, graph);
+	    root.setSpacing(20);
+	    
 		primaryStage.setTitle("Cheaters");
 		primaryStage.setScene(sc);
 		primaryStage.show();

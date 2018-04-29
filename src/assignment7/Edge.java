@@ -1,13 +1,17 @@
 package assignment7;
 
 import javafx.scene.Group;
+import javafx.scene.control.Label;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 
 public class Edge extends Pane{
-	protected static int LINEWEIGHT = 10;
-	protected static int MAX = 500;
+	private static int bound;
+	public static void setBound(int boundInput) {
+		bound = boundInput;
+	}
 	
 	private Node source;
 	private Node target;
@@ -19,7 +23,7 @@ public class Edge extends Pane{
 		this.source = source;
 		this.target = target;
 		this.weight = weight;
-		
+				
 		line = new Line();
 		
 		line.startXProperty().bind(source.layoutXProperty().add(source.getBoundsInParent().getWidth() / 2.0));
@@ -29,8 +33,9 @@ public class Edge extends Pane{
 		line.endYProperty().bind(target.layoutYProperty().add(target.getBoundsInParent().getHeight() / 2.0));
 		line.setStroke(Color.BLACK);
 		
-		line.setStrokeWidth(5);
-		getChildren().add(line);
+		line.setStrokeWidth(weight / bound);
+		
+		getChildren().addAll(line);
 	}
 	
 }
