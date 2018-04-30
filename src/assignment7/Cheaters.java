@@ -290,7 +290,6 @@ public class Cheaters {
 	 * @return an array list of suspicious pairs of documents
 	 */
 	private ArrayList<SuspectPair> createList(int bound) {
-
 		for (int i = 0; i < sameWords.length; ++i) {
 			for (int j = i + 1; j < sameWords.length; ++j) {
 				int matchNum = sameWords[i][j];
