@@ -1,7 +1,12 @@
 package assignment7;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,23 +19,77 @@ import java.util.Scanner;
 import java.util.regex.Pattern;
 
 public class Cheaters {
+	private final Pattern UNWANTED_PUNCTUATION = Pattern.compile("[^A-Za-z0-9]"); // pattern that should be filtered out
+	/* Different string exclusion patterns
+	[^A-Za-z]
+	[^A-Za-z0-9]
+	\\p{P}
+	 */
+	
+	// Code for GUI
 	private ArrayList<SuspectPair> suspectPairs = new ArrayList<SuspectPair>();
 	private ArrayList<Document> suspectDocs = new ArrayList<Document>();
 	
-	private final Pattern UNWANTED_PUNCTUATION = Pattern.compile("\\p{P}"); // pattern that should be filtered out
+	/**
+	 * Creates a list of suspicious pairs of documents Meant to be used by view to
+	 * create a graphic representation
+	 * 
+	 * @param bound
+	 * @return an array list of suspicious pairs of documents
+	 */
+	public void createSuspectList(int bound) {
+
+		for (int i = 0; i < sameCombo.length; ++i) {
+			for (int j = i + 1; j < sameCombo.length; ++j) {
+				int matchNum = sameCombo[i][j];
+				if (matchNum > bound) {
+					Document d1 = Document.getMasterList().get(i);
+					Document d2 = Document.getMasterList().get(j);
+					if(!suspectDocs.contains(d1)) {
+						suspectDocs.add(d1);
+					}
+					if(!suspectDocs.contains(d2)) {
+						suspectDocs.add(d2);
+					}
+					suspectPairs.add(new SuspectPair(d1, d2, matchNum));
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Returns suspicious pairs of documents
+	 * @return
+	 */
+	public ArrayList<SuspectPair> getSuspiciousPairsOfDocs() {
+		return suspectPairs;
+	}
+	
+	/**
+	 * Returns suspicious documents
+	 */
+	public ArrayList<Document> getSuspiciousDocs(){
+		return suspectDocs;
+	}
+
+	
+	// Data Structures to hold the needed map, matrix and pairs
 	private Hashtable<String, List<Document>> wordCombos = new Hashtable<String, List<Document>>();
 	// Hash Table of (word: list of documents it was found in)
 	private int[][] sameCombo;
-	
+
+
+	// Parameters needed for the program to run
 	private File folder; // folder that holds documents (assumes no sub-directories)
 	private File[] listOfFiles; // list of files in the folder
-	private Iterator<File> listIter;
-	private Iterator<String> keySet;
 	private int numWords; // number of words that count as a similarity
 	private int miniBound; // number of similarities that count as dangerous
-	private int cores = Runtime.getRuntime().availableProcessors();
 
+	// Concurrency Stuff:
+	private int cores = Runtime.getRuntime().availableProcessors();
 	private Object o = new Object();
+	private Iterator<File> listIter;
+	private Iterator<String> keySet;
 
 	// DEBUG: time
 	private long startTime;
@@ -64,7 +123,7 @@ public class Cheaters {
 	/**
 	 * Grabs the list of files within the chosen folder
 	 */
-	private synchronized void getFileList() {
+	private void getFileList() {
 		// DEBUG
 		// System.out.println(folder.getPath());
 		// System.out.println(numWords);
@@ -79,18 +138,11 @@ public class Cheaters {
 		}
 	}
 
-	private synchronized File getFromFileList() {
-		if (listIter.hasNext()) {
-			return listIter.next();
-		} else {
-			return null;
-		}
-	}
-
 	/**
 	 * Scans the files in the subdirectory and populates the hash table The hash
 	 * table: key: phrases of <numWords> words that count as a similarity value:
 	 * linked list of documents that contain that particular phrase similarity
+	 * Single-Threaded method
 	 */
 	private void scanFiles() {
 		// Iterate through files and input into hash table
@@ -99,72 +151,108 @@ public class Cheaters {
 		}
 	}
 
+//	static List<String> d = new ArrayList<String>();
+//	static {
+////		d.add("bef1121.txt");
+////		d.add("edo14.txt");
+//	}
+
+	/**
+	 * Build the hash table from the given <numWords> chunks
+	 * 
+	 * @param file
+	 *            The file to process over in order to have a generic file
+	 *            processing
+	 */
 	private void populateHashTable(File file) {
 		Scanner sc;
 		String key;
 		Document fDocument;
+//		boolean check = false;
+
 		synchronized (o) {
+			String name = file.getName();
 			fDocument = new Document(file.getName());
+//			if (d.contains(name)) {
+//				check = true;
+//				System.out.println();
+//			}
 		}
 
-		// DEBUG: Check if filename properly grabbed
-		// System.out.println("FILE: " + fDocument);
-
 		try {
-
-			// Must rotate through number of words, each time offset by one
+			Charset encoding = StandardCharsets.UTF_8;
+			sc = new Scanner(new BufferedReader(new InputStreamReader(new FileInputStream(file), encoding)));
+			// Set encoding because file inputstreams are hard to figure out encoding
+			ArrayList<String> keyArr = new ArrayList<String>();
 			for (int k = 0; k < numWords; ++k) {
-				sc = new Scanner(file);
-				// sc.useDelimiter(" ");
-
-				while (sc.hasNext()) {
-
-					// Start with offset (On second run, start from second word. On third run, start
-					// from third ...)
-					for (int i = 0; i < k; ++i) {
-						if (!sc.hasNext()) {
-							break;
-						}
-						sc.next();
-					}
-
-					// Hash the keys into hash table/map
-					// Extract key from file
-					key = "";
-					for (int i = 0; i < numWords; ++i) {
-						if (!sc.hasNext()) {
-							break;
-						}
-						key += sc.next(); // get x number of words
-					}
-
-					// Clean key (get rid of punctuation/turn to all upper case)
-					key = UNWANTED_PUNCTUATION.matcher(key).replaceAll("");
-					key = key.toUpperCase();
-
-					// Add key to hash table (key = words : value = list of documents)
-					if (wordCombos.containsKey(key)) { // key already in table
-						List<Document> list = wordCombos.get(key);
-
-						// Only add if document is not already there
-						if (!list.contains(fDocument)) {
-							list.add(fDocument);
-						}
-
-					} else { // key not yet in hash table (include key and init list of documents)
-						List<Document> value = Collections.synchronizedList(new LinkedList<Document>());
-						value.add(fDocument);
-						wordCombos.put(key, value);
-					}
-
-					// DEBUG: check if key was extracted and altered properly
-					// System.out.println(key);
+				if (sc.hasNext()) {
+					keyArr.add(addNextKey(sc));
 				}
 			}
-
+			while (sc.hasNext()) {
+				// Error checking just in case
+				if (keyArr.size() > numWords) {
+					System.out.println("Error size: " + keyArr.size());
+					System.exit(0);
+				}
+				key = "";
+				for (String s : keyArr) {
+					key += s;
+				}
+//				if (check) {
+//					if (key.equals("themovie,whilealsobeingmore")) {
+//						check = true;
+//					}
+//					System.out.println(key);
+//				}
+				
+				addKeyToHash(key, fDocument);
+				keyArr.remove(0);
+				keyArr.add(addNextKey(sc));
+			}
+			sc.close();
 		} catch (FileNotFoundException e) {
 			System.out.println("File not found");
 			e.printStackTrace();
+		}
+	}
+	
+	private String addNextKey(Scanner sc) {
+		String newKey = "";
+		while(sc.hasNext() && newKey.equals("")) {
+			newKey = sc.next();
+			// Clean key (get rid of punctuation/turn to all upper case)
+			newKey = UNWANTED_PUNCTUATION.matcher(newKey).replaceAll("");
+			newKey = newKey.toUpperCase();
+		}
+		
+		return newKey;
+	}
+
+	/**
+	 * Abstracted layer of the word Processing to bring into the HashMap of Cheaters
+	 * 
+	 * @param key
+	 *            The <numWords> chunk
+	 * @param fDocument
+	 *            The identifier for the document
+	 */
+	private void addKeyToHash(String key, Document fDocument) {
+
+		// Add key to hash table (key = words : value = list of documents)
+		if (wordCombos.containsKey(key)) { // key already in table
+			List<Document> list = wordCombos.get(key);
+
+			// Only add if document is not already there
+			// if (!list.contains(fDocument)) {
+			// list.add(fDocument);
+			// }
+			list.add(fDocument);
+
+		} else { // key not yet in hash table (include key and init list of documents)
+			List<Document> value = Collections.synchronizedList(new LinkedList<Document>());
+			value.add(fDocument);
+			wordCombos.put(key, value);
 		}
 	}
 
@@ -177,9 +265,6 @@ public class Cheaters {
 		// Create an similarity matrix
 		sameCombo = new int[Document.getCounter()][Document.getCounter()];
 		keySet = wordCombos.keySet().iterator();
-
-		// DEBUG:
-		cores = 0;
 
 		if (cores > 1) {
 			Thread[] processThreads = new Thread[cores];
@@ -202,14 +287,13 @@ public class Cheaters {
 		}
 	}
 
-	private synchronized List<Document> getListFromKeySet() {
-		if (keySet.hasNext()) {
-			return wordCombos.get(keySet.next());
-		} else {
-			return null;
-		}
-	}
-
+	/**
+	 * Generic processing layer to use for both single and multi-threaded methods
+	 * 
+	 * @param match
+	 *            Basically uses different documents from the list as coordinates to
+	 *            add to the matrix
+	 */
 	private void processSimilarityMatrix(List<Document> match) {
 		// For each document in the list, increment array corresponding to doc numbers
 		// Doc with smaller ID will be x value, larger ID will be y value
@@ -223,7 +307,8 @@ public class Cheaters {
 				int id1 = d1.getId();
 				int id2 = d2.getId();
 				if (id1 > id2) {
-					int temp = id2;
+					int temp = id2; // In order to map to the upper triangle of the matrix to not have to do a
+									// double check or fold over
 					id2 = id1;
 					id1 = temp;
 				}
@@ -252,39 +337,20 @@ public class Cheaters {
 	private void consoleOutput() {
 		// Output documents that have more than the minimum bound of similar words
 		for (int i = 0; i < sameCombo.length; ++i) {
-			for (int j = i + 1; j < sameCombo.length; ++j) {
+			for (int j = i + 1; j < sameCombo.length; ++j) { // i + 1 to skip over checking the diagonal of the matrix
 				int matchNum = sameCombo[i][j];
 				if (matchNum > miniBound) {
 					Document d1 = Document.getMasterList().get(i);
 					Document d2 = Document.getMasterList().get(j);
-					System.out.println(d1.getId() + "," + d2.getId() + ": " + matchNum);
+					System.out.println(d1.getName() + "," + d2.getName() + ": " + matchNum);
 				}
 			}
 		}
 	}
 
 	/**
-	 * Creates a list of suspicious pairs of documents Meant to be used by view to
-	 * create a graphic representation
-	 * 
-	 * @param bound
-	 * @return an array list of suspicious pairs of documents
+	 * For testing runtime in debugging and making sure timing works fine
 	 */
-	private ArrayList<SuspectPair> createList(int bound) {
-
-		for (int i = 0; i < sameCombo.length; ++i) {
-			for (int j = i + 1; j < sameCombo.length; ++j) {
-				int matchNum = sameCombo[i][j];
-				if (matchNum > bound) {
-					Document d1 = Document.getMasterList().get(i);
-					Document d2 = Document.getMasterList().get(j);
-					suspectPairs.add(new SuspectPair(d1, d2, matchNum));
-				}
-			}
-		}
-		return suspectPairs;
-	}
-
 	private void outputRunTime() {
 		// Output run time
 		endTime = System.currentTimeMillis();
@@ -293,12 +359,12 @@ public class Cheaters {
 	}
 
 	/**
-	 * Processes the files into hash table and generates similarity matrix
-	 * Originally main function before GUI Implementation
+	 * Wrapper for the file processing part from the HashMap creation to the matrix
+	 * addition
 	 */
 	public void processFiles() {
 		// DEBUG
-		// cores = 0;
+//		cores = 0;
 		if (cores > 1) {
 			Thread[] scanThreads = new Thread[cores];
 			for (int i = 0; i < cores; ++i) {
@@ -318,54 +384,11 @@ public class Cheaters {
 		fillSimilarityMatrix();
 		// DEBUG
 		// cheaters.printSimilarityMatrix();
-		consoleOutput();
-		outputRunTime();
-		
-	}
-	
-	
-	/**
-	 * Creates a list of suspicious pairs of documents Meant to be used by view to
-	 * create a graphic representation
-	 * 
-	 * @param bound
-	 * @return an array list of suspicious pairs of documents
-	 */
-	public void createSuspectList(int bound) {
+//		consoleOutput();
+//		outputRunTime();
 
-		for (int i = 0; i < sameCombo.length; ++i) {
-			for (int j = i + 1; j < sameCombo.length; ++j) {
-				int matchNum = sameCombo[i][j];
-				if (matchNum > bound) {
-					Document d1 = Document.getMasterList().get(i);
-					Document d2 = Document.getMasterList().get(j);
-					if(!suspectDocs.contains(d1)) {
-						suspectDocs.add(d1);
-					}
-					if(!suspectDocs.contains(d2)) {
-						suspectDocs.add(d2);
-					}
-					suspectPairs.add(new SuspectPair(d1, d2, matchNum));
-				}
-			}
-		}
 	}
 
-	/**
-	 * Returns suspicious pairs of documents
-	 * @return
-	 */
-	public ArrayList<SuspectPair> getSuspiciousPairsOfDocs() {
-		return suspectPairs;
-	}
-	
-	/**
-	 * Returns suspicious documents
-	 */
-	public ArrayList<Document> getSuspiciousDocs(){
-		return suspectDocs;
-	}
-	
 	/**
 	 * Given a directory of essays, will determine similarities between essays
 	 * 
@@ -373,18 +396,21 @@ public class Cheaters {
 	 *            [0] path to file, [1] number of words
 	 */
 	public static void main(String[] args) {
-		int stress = 20;
-		for (int j = 0; j < stress; ++j) {
-			Cheaters cheaters;
-			if (args.length < 3) {
-				cheaters = new Cheaters();
-			} else {
-				cheaters = new Cheaters(args);
-			}
-			cheaters.processFiles();
+		Cheaters cheaters;
+		if (args.length < 3) {
+			cheaters = new Cheaters();
+		} else {
+			cheaters = new Cheaters(args);
 		}
+		cheaters.processFiles();
 	}
 
+	/**
+	 * Concurrency class for building the HashMap
+	 * 
+	 * @author balbe
+	 *
+	 */
 	private class MapPopulate implements Runnable {
 
 		@Override
@@ -396,8 +422,23 @@ public class Cheaters {
 				file = getFromFileList();
 			}
 		}
+
 	}
 
+	private synchronized File getFromFileList() {
+		if (listIter.hasNext()) {
+			return listIter.next();
+		} else {
+			return null;
+		}
+	}
+
+	/**
+	 * Concurrency class for processing over the HashMap
+	 * 
+	 * @author balbe
+	 *
+	 */
 	private class MapIterate implements Runnable {
 		@Override
 		public void run() {
@@ -408,5 +449,17 @@ public class Cheaters {
 			}
 		}
 	}
-}
 
+	/**
+	 * Concurrency method for processing over the HashMap
+	 * 
+	 * @return The List of the documents with a match to the key
+	 */
+	private synchronized List<Document> getListFromKeySet() {
+		if (keySet.hasNext()) {
+			return wordCombos.get(keySet.next());
+		} else {
+			return null;
+		}
+	}
+}

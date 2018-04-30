@@ -5,6 +5,7 @@ import java.util.ArrayList;
 
 import javafx.application.Application;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -23,6 +24,8 @@ public class Main extends Application {
 	private static UserMenu menu;
 	private static Graph graph;
 	private static Cheaters cheaters;	
+	private static StackPane loadingMsg;
+	private static VBox root;
 	
 	public static int getSceneSize() {
 		return SCENE_SIZE;
@@ -47,23 +50,39 @@ public class Main extends Application {
 	@Override
 	public void start(Stage primaryStage) {
 	    
-	    VBox root = new VBox();
+	    root = new VBox();
 	    Scene sc = new Scene(root, SCENE_SIZE, SCENE_SIZE);
 		
 	    menu = new UserMenu(primaryStage);
 	    menu.createUserMenu();
 	    
 	    graph = new Graph(menu);
-
+	    graph.setStyle("-fx-border-color: black");
+	    
+	    loadingMsg = new StackPane();
+	    Text text = new Text("Loading");
+	    loadingMsg.getChildren().add(text);
+	    loadingMsg.setAlignment(Pos.CENTER);
+	   
+	    
 	    root.getChildren().addAll(menu, graph);
 	    root.setSpacing(20);
 	    
 		primaryStage.setTitle("Cheaters");
 		primaryStage.setScene(sc);
+		primaryStage.setResizable(false);
 		primaryStage.show();
 		
 	}
 
+	public static void hideLoadingMsg() {
+		root.getChildren().remove(1);
+	}
+	
+	public static void showLoadingMsg() {
+		root.getChildren().add(1, loadingMsg);
+	}
+	
 	public static void main(String[] args) {
 		launch(args);
 	}

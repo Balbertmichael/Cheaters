@@ -13,7 +13,6 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.stage.DirectoryChooser;
-import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 public class UserMenu extends FlowPane{
@@ -76,6 +75,9 @@ public class UserMenu extends FlowPane{
 		run.setOnAction(new EventHandler<ActionEvent>() {
 			@Override
 			public void handle(ActionEvent arg0) {
+				
+				Main.showLoadingMsg();
+				
 				String [] args = new String[3];
 				args[0] = dirInput.getText();
 				args[1] = numWordsInput.getText();
@@ -98,6 +100,8 @@ public class UserMenu extends FlowPane{
 				    graph.setGraph(cheaters.getSuspiciousDocs(), cheaters.getSuspiciousPairsOfDocs());
 				    graph.draw();
 				}
+				
+				Main.hideLoadingMsg();
 
 			}
 		});
