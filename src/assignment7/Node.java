@@ -10,6 +10,7 @@ public class Node extends StackPane{
 	private Document doc;
 	Circle circle;
 	Text id;
+	private double rad;
 
 	private Coordinates loc = new Coordinates();
 	private int layer = 0;
@@ -26,7 +27,7 @@ public class Node extends StackPane{
 	
 	public static void setTotalNodeCount(int count) {
 		totalNodes = count;
-		totalLayers = ((totalNodes - 1) / 8) + 1;
+		totalLayers = ((totalNodes - 1) / 8) + 2;
 	}
 	
 	private void calcLoc() {
@@ -41,7 +42,7 @@ public class Node extends StackPane{
 		
 		double radius = layerLength;
 		double offset = (layer % 2) * (PI / 8);
-		double angle = ((nodeCounter - 1) % 8) * (PI / 4);
+		double angle = ((nodeCounter) % 8) * (PI / 4);
 		
 		loc.setX( origin + (layer * radius * Math.cos( angle + offset )));
 		loc.setY( origin + (layer * radius * Math.sin( angle + offset )));
@@ -56,7 +57,7 @@ public class Node extends StackPane{
 	}
 	
 	private void draw() {
-		halfParentSize = (Main.getSceneSize() / 2) * 0.75;
+		halfParentSize = (Main.getSceneSize() * 0.90) / 2;
 		layerLength = halfParentSize / totalLayers;
 		
 		
@@ -64,7 +65,7 @@ public class Node extends StackPane{
 		layer = (nodeCounter / 8) + 1;
 		
 		calcLoc();
-		double rad = layerLength / 4;
+		rad = layerLength / 4;
 		if(rad > 25) {
 			rad = 25;
 		}
@@ -76,6 +77,10 @@ public class Node extends StackPane{
 		
 		getChildren().addAll(circle);
 		relocate(loc.getX(), loc.getY());
+	}
+	
+	public double getRadius() {
+		return rad;
 	}
 	
 	public Document getDoc() {
