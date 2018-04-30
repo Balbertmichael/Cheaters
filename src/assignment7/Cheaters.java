@@ -170,7 +170,6 @@ public class Cheaters {
 		Scanner sc;
 		String key;
 		Document fDocument;
-
 		synchronized (o) {
 			fDocument = new Document(file.getName());
 		}
@@ -394,6 +393,7 @@ public class Cheaters {
 			cheaters = new Cheaters(args);
 		}
 		cheaters.processFiles();
+		cheaters.consoleOutput();
 	}
 
 	/**
